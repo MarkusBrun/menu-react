@@ -1,3 +1,8 @@
+<div>
+  <h1>Menu</h1>
+  <div id="menus"></div>
+</div>
+
 <p>
   <strong>Name</strong><br>
   <%= @menu.name %>
@@ -29,17 +34,181 @@
   <%= link_to 'Back to Menus', restaurant_menus_path(@menu.restaurant) %>
 </p>
 
-<script>
-$.ajax('/menus/<%= @menu.id %>/menu_items.json', {
-  method: 'GET'
-})
-.done(function(users) {
-  console.log(users);
-})
-.fail(function(err) {
-  console.log('error');
-})
-.always(function() {
-  console.log('complete');;
-});
+<script type="text/babel">
+
+class MenuItem extends React.Component {
+  render() {
+    return (
+      <tr className="MenuItem">
+        <td className="menu-name">{this.props.name}</td>
+        <td className="menu-desc">{this.props.description}</td>
+        <td className="menu-price">{this.props.price}</td>
+      </tr>
+    );
+  }
+}
+
+class MenuList extends React.Component {
+  render() {
+    var menuItemNodes = this.props.data.map(function(menuItem) {
+      return (
+        <MenuItem name={menuItem.name} description={menuItem.description} price={menuItem.price} key={menuItem.id}>
+        </MenuItem>
+      );
+    });
+    return (
+        <tbody>
+          {menuItemNodes}
+        </tbody>
+    );
+  }
+};
+
+class MenuForm extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.state = { name: '', description: '', price: '' , id: '' };
+
+    this.handleNameChange = this.handleNameChange.bind(this);
+    this.handleDescriptionChange = this.handleDescriptionChange.bind(this);
+    this.handlePriceChange = this.handlePriceChange.bind(this);
+    this.handleIdChange = this.handleIdChange.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+  }
+
+  handleNameChange(e) {
+    this.setState({ name: e.target.value });
+    console.log("Name Changed")
+  }
+
+  handleDescriptionChange(e) {
+    this.setState({ description: e.target.value });
+    console.log("desc Changed")
+  }
+
+  handlePriceChange(e) {
+    this.setState({ price: e.target.value });
+    console.log("price Changed")
+  }
+
+  handleIdChange(e) {
+    this.setState({ id: e.target.value });
+  }
+
+  handleSubmit(e) {
+    e.preventDefault();
+
+    var name = this.state.name.trim();
+    var description = this.state.description.trim();
+    var price = this.state.price.trim();
+    var id = this.state.id.trim();
+
+    if (!name || !description || !price)  {
+      return;
+    }
+
+    this.props.onMenuItemSubmit({ name: name, description: description, price: price , id: id});
+
+    this.setState({ name: '', description: '', price: '' , id: '' });
+  }
+  render() {
+    return (
+      <form className="additem-form" onSubmit={this.handleSubmit}>
+        <input
+          type="text"
+          placeholder="name"
+          value={this.state.name}
+          onChange={this.handleNameChange}
+        />
+        <br/>
+        <textarea
+          type="text"
+          placeholder="description"
+          value={this.state.description}
+          onChange={this.handleDescriptionChange}
+        />
+        <br/>
+        <input
+          type="text"
+          placeholder="price"
+          value={this.state.price}
+          onChange={this.handlePriceChange}
+        />
+        <input type="submit" value="Post" />
+      </form>
+    );
+  }
+}
+
+class MenuBox extends React.Component {
+  constructor(props) {
+   super(props);
+
+   this.state = { data: [] };
+
+   this.getMenu = this.getMenu.bind(this);
+   this.handleMenuItemSubmit = this.handleMenuItemSubmit.bind(this);
+  }
+
+  getMenu() {
+    $.ajax({
+      url: this.props.url,
+      dataType: 'json',
+      cache: false
+    })
+    .done(function(menu) {
+      this.setState({ data: menu });
+    }.bind(this))
+    .fail(function(xhr, status, err) {
+      console.error(err);
+    }.bind(this));
+  }
+
+  handleMenuItemSubmit(item) {
+    $.ajax({
+      url: this.props.url,
+      dataType: 'json',
+      type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify(item),
+    })
+    .done(function(post) {
+      this.setState({data: post});
+    }.bind(this))
+    .fail(function(xhr, status, err) {
+      console.error(err);
+    }.bind(this));
+  }
+
+
+  componentDidMount() {
+  this.getMenu();
+  setInterval(this.getMenu, this.props.pollInterval)
+}
+
+  render() {
+    return (
+      <div className="menu-box">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+            <MenuList data={this.state.data}>
+            </MenuList>
+        </table>
+        <MenuForm onMenuItemSubmit={this.handleMenuItemSubmit} />
+      </div>
+    );
+  }
+}
+ReactDOM.render(
+  <MenuBox url="http://localhost:3000/menus/ <%= @menu.id %>/menu_items.json" pollInterval={1500}/>,
+  document.getElementById('menus')
+);
+
 </script>
